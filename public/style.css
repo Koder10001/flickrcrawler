@@ -1,0 +1,51 @@
+*{
+    padding: 0;
+    margin: 0;
+}
+body{ 
+     background-color: black;
+}
+#top {
+    height: 45px;
+    width: 100%;
+    display: flex;
+}
+#mode {
+    flex: 1;
+}
+#url {
+    flex: 5;
+}
+#log {
+    color : white;
+    overflow-y: auto;
+    height: calc(100% - 45px);
+}
+.success {
+    color: lime;
+}
+.error {
+    color: red;
+}
+.line {
+    width: 100%;
+    min-height: 20px;
+    line-height: 20px;
+    display: flex;
+}
+.error, .success {
+    flex: 1;
+    text-align: center;
+}
+.content {
+    flex: 10;
+}
+#container {
+    height: 100vh;
+}
+a{
+    color: white;
+}
+a:visited{
+    color: silver;
+}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>getFlick</title>
+    <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+    <div id="container">
+        <div id="top">
+            <select id="mode">
+                <option value="none">Choose One</option>
+                <option value="pht">Photosteam</option>
+                <option value="fav">Favorite</option>
+                <option value="alb">Album</option>
+                <option value="gal">Gallery</option>
+                <option value="grp">Group</option>
+            </select>
+            <input type="text" id="url" autocomplete="off"/>
+        </div>
+        <div id="log">
+        </div>
+    </div>
+    <script src="socket.io.js"></script>
+    <script src="koder17.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
