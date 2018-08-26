@@ -10,6 +10,8 @@
   "license": "ISC",
   "dependencies": {
     "flickrapi": "^0.6.0",
-    "socket.io": "^2.1.1"
+    "rimraf": "^2.6.2",
+    "socket.io": "^2.1.1",
+    "zip-local": "^0.3.4"
   }
 }

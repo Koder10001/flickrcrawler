@@ -2,7 +2,9 @@ var http = require("http").createServer(handler);
 var io = require("socket.io")(http);
 var fs = require("fs");
 var Flickr = require("flickrapi");
+var rimraf = require("rimraf");
 var path = require("path");
+var zipper = require("zip-local");
 
 var flickrOptions = {
     api_key: "af1146a2df5582ec7a4b02c644eb2c1f",
@@ -12,7 +14,7 @@ var flickrOptions = {
     access_token_secret: '0096f537b1c3cfcf'
 };
 
-const __path = path.join(__dirname,"public");
+const __path = path.join("public");
 function handler(req,res){
     if(req.url == "/"){
         req.url = "index.html";
@@ -45,14 +47,15 @@ io.on("connection",function(socket){
                     id(flickr,flickr.urls.lookupUser,flickr.people.getPhotos,data,socket,["photos","photo"],"user_id");
                 break;
                 case "alb":
-                    fs.writeFileSync(path.join(__path,"pictures",data.mode + "-"+data.url.split("/")[6]+".txt"),"");
+                    filepath = path.join("pictures",data.mode + "-"+data.url.split("/")[6]+".txt")
+                    fs.writeFileSync(path.join(__path,filepath),"");
                     socket.emit("reply",{status: "success",content:data.url.split("/")[6]});
                     flickr.urls.lookupUser({
                         api_key: flickrOptions.api_key,
                         authenticated: true,
                         url: data.url
                     },function(err,result){
-                        get(data.url.split("/")[6],socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id",result.user.id);
+                        get(data.url.split("/")[6],socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id",filepath,result.user.id);
                     });
                 break;
                 case "fav":
@@ -65,14 +68,29 @@ io.on("connection",function(socket){
                     id(flickr,flickr.urls.lookupGroup,flickr.groups.pools.getPhotos,data,socket,["photos","photo"],"group_id");
                 break;
                 case "all":
-                    flickr.urls.lookupUser({
-                        api_key: flickrOptions.api_key,
-                        authenticated: true,
-                        url: data.url
-                    },function(err,result){
-                        var list = [];
-                        allAlb(flickr,result.user.id,list,data,socket,result.user.id);
-                    });
+                    if(data.url.substring(0,3)== "zip"){
+                        let username = data.url.substring(3).trim();
+                        if(fs.existsSync(path.join(__path,"pictures",username))){
+                            if(fs.existsSync(path.join(__path,"pictures",username+".zip"))){
+                                fs.unlinkSync(path.join(__path,"pictures",username+".zip"));
+                            }
+                            zipper.sync.zip(path.join(__path,"pictures",username)).compress().save(path.join(__path,"pictures",username+".zip"));
+                            rimraf(path.join(__path,"pictures",username),function(error){});
+                            socket.emit("reply",{status: "success",content: "Zipped <a href='pictures/"+username+".zip'>"+username+".zip</a>"});
+                        }
+                        else {
+                            socket.emit("reply",{status: "error",content: "Not found"});
+                        }
+                    }
+                    else {
+                        flickr.urls.lookupUser({
+                            api_key: flickrOptions.api_key,
+                            authenticated: true,
+                            url: data.url
+                        },function(err,result){
+                            allAlb(flickr,result.user.id,data,socket,result.user.id);
+                        });
+                    }
                 break;
                 default:
                     socket.emit("reply",{status: "error",content: "Choose a mode !!!"});
@@ -90,7 +108,7 @@ io.on("connection",function(socket){
 
 
 
-function allAlb(flickr,id,list,data,socket,userid,pagealb = 1){
+function allAlb(flickr,id,data,socket,userid,pagealb = 1){
     flickr.photosets.getList({
         api_key: flickrOptions.api_key,
         authenticated:true,
@@ -99,16 +117,18 @@ function allAlb(flickr,id,list,data,socket,userid,pagealb = 1){
         per_page:500
     },function(err,result){
         result.photosets.photoset.forEach(ids => {
-            fs.writeFileSync(path.join(__path,"pictures",userid,data.mode + "-"+ids.id+".txt"),"");
-            console.log(ids.id);
-            list.push(path.join(__path,"pictures",data.mode + "-"+ids.id+".txt"));
-            get(ids.id,socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id",userid);
+            filepath = path.join("pictures",userid,data.mode + "-"+ids.id+".txt");
+            if (!fs.existsSync(path.dirname(path.join(__path,filepath)))){
+                fs.mkdirSync(path.dirname(path.join(__path,filepath)));
+            }
+            fs.writeFileSync(path.join(__path,filepath),"");
+            get(ids.id,socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id",filepath,userid);
         })
         if(result.photosets.page < result.photosets.pages){
             allAlb(flickr,id,list,data,socket,pagealb+1);
         }
         else{
-            socket.emit("reply",{status:"success",content:list});
+            socket.emit("reply",{status:"success",content:"When done wait a few min then \`zip "+userid+"\`"});
         }
     })
 }
@@ -132,7 +152,7 @@ function allAlb(flickr,id,list,data,socket,userid,pagealb = 1){
 
 
 
-function id(flickr,getid,method,data,socket,element,idname,userid = null){
+function id(flickr,getid,method,data,socket,element,idname,userid = undefined){
     getid({
         api_key: flickrOptions.api_key,
         authenticated: true,
@@ -145,13 +165,14 @@ function id(flickr,getid,method,data,socket,element,idname,userid = null){
             socket.emit("reply",{status: "success",content: (result.user|| result.gallery || result.group).id});
             let user_id = (result.user|| result.gallery || result.group).id;
             // get list photo
-            fs.writeFileSync(path.join(__path,"pictures",data.mode + "-"+user_id+".txt"),"");
-            get((result.user|| result.gallery || result.group).id,socket,method, flickr,data.mode,element,idname,userid);
+            filepath = path.join("pictures",data.mode + "-"+user_id+".txt")
+            fs.writeFileSync(path.join(__path,filepath),"");
+            get((result.user|| result.gallery || result.group).id,socket,method, flickr,data.mode,element,idname,filepath,userid);
         }
     })
 }
 
-function get(id,socket,method,flickr,mode,element,idname,userid,page = 1){
+function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 1){
     let user_id = id;
     let option = {
         api_key: flickrOptions.api_key,
@@ -171,25 +192,42 @@ function get(id,socket,method,flickr,mode,element,idname,userid,page = 1){
                 api_key: flickrOptions.api_key,
                 photo_id: element.id,
                 authenticated: true,
-            },function(err,result){
-                if(fs.statSync(path.join(__path,"pictures",mode + "-"+user_id+".txt")).size == 0){
-                    fs.appendFileSync(path.join(__path,"pictures",mode + "-"+user_id+".txt"),result.sizes.size[result.sizes.size.length -1].source);
+            },retry = function(err,result){
+                if(err){
+                    flickr.photos.getSizes({
+                        api_key: flickrOptions.api_key,
+                        photo_id: element.id,
+                        authenticated: true,
+                    },retry);
+                    return;
+                }
+                if(fs.statSync(path.join(__path,filepath)).size == 0){
+                    fs.appendFileSync(path.join(__path,filepath),result.sizes.size[result.sizes.size.length -1].source);
                 }
                 else {
-                    fs.appendFileSync(path.join(__path,"pictures",mode + "-"+user_id+".txt"),"\r\n" + result.sizes.size[result.sizes.size.length -1].source);
+                    fs.appendFileSync(path.join(__path,filepath),"\r\n" + result.sizes.size[result.sizes.size.length -1].source);
                 }
             })
         });
         if(result[element[0]].pages > page){
             socket.emit("reply",{status: "success",content: (500*page)+"/"+result[element[0]].total});
-            get(id,socket,method,flickr,mode,element,idname,page+1);
+            get(id,socket,method,flickr,mode,element,idname,filepath,userid,page+1);
         }
         else {
             socket.emit("reply",{status: "success",content: (500*(page-1)+result[element[0]][element[1]].length)+"/"+result[element[0]].total});
-            socket.emit("reply",{status: "success", content: '<a download href="pictures/'+ mode + '-'+user_id+'.txt">'+ mode + '-'+user_id+'.txt</a>'})
+            socket.emit("reply",{status: "success", content: '<a download href="' + filepath + '">'+ mode + '-'+user_id+'.txt</a>'})
         }
     });
 }
-// Flickr.authenticate(flickrOptions, function(error, flickr) {
-//     console.log(flickr);
-// });
+function checkDirectory(directory, callback) {  
+    fs.stat(directory, function(err, stats) {
+      //Check if error defined and the error code is "not exists"
+      if (err && err.errno === 34) {
+        //Create the directory, call the callback.
+        fs.mkdir(directory, callback);
+      } else {
+        //just in case there was a different error:
+        callback(err)
+      }
+    });
+  }
