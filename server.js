@@ -5,8 +5,8 @@ var Flickr = require("flickrapi");
 var rimraf = require("rimraf");
 var path = require("path");
 var zipper = require("zip-local");
-if(!fs.existsSync(path.join(__path,"pictures"))){
-    fs.mkdirSync(path.join(__path,"pictures"));
+if(!fs.existsSync(path.join("public","pictures"))){
+    fs.mkdirSync(path.join("public","pictures"));
 }
 var flickrOptions = {
     api_key: "af1146a2df5582ec7a4b02c644eb2c1f",
