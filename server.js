@@ -47,7 +47,13 @@ io.on("connection",function(socket){
                 case "alb":
                     fs.writeFileSync(path.join(__path,"pictures",data.mode + "-"+data.url.split("/")[6]+".txt"),"");
                     socket.emit("reply",{status: "success",content:data.url.split("/")[6]});
-                    get(data.url.split("/")[6],socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id");
+                    flickr.urls.lookupUser({
+                        api_key: flickrOptions.api_key,
+                        authenticated: true,
+                        url: data.url
+                    },function(err,result){
+                        get(data.url.split("/")[6],socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id",result.user.id);
+                    });
                 break;
                 case "fav":
                     id(flickr,flickr.urls.lookupUser,flickr.favorites.getList,data,socket,["photos","photo"],"user_id");
@@ -57,6 +63,16 @@ io.on("connection",function(socket){
                 break;
                 case "grp":
                     id(flickr,flickr.urls.lookupGroup,flickr.groups.pools.getPhotos,data,socket,["photos","photo"],"group_id");
+                break;
+                case "all":
+                    flickr.urls.lookupUser({
+                        api_key: flickrOptions.api_key,
+                        authenticated: true,
+                        url: data.url
+                    },function(err,result){
+                        var list = [];
+                        allAlb(flickr,result.user.id,list,data,socket,result.user.id);
+                    });
                 break;
                 default:
                     socket.emit("reply",{status: "error",content: "Choose a mode !!!"});
@@ -71,9 +87,55 @@ io.on("connection",function(socket){
 
 // });
 
-function id(flickr,getid,method,data,socket,element,idname){
+
+
+
+function allAlb(flickr,id,list,data,socket,userid,pagealb = 1){
+    flickr.photosets.getList({
+        api_key: flickrOptions.api_key,
+        authenticated:true,
+        user_id: id,
+        page : pagealb,
+        per_page:500
+    },function(err,result){
+        result.photosets.photoset.forEach(ids => {
+            fs.writeFileSync(path.join(__path,"pictures",userid,data.mode + "-"+ids.id+".txt"),"");
+            console.log(ids.id);
+            list.push(path.join(__path,"pictures",data.mode + "-"+ids.id+".txt"));
+            get(ids.id,socket,flickr.photosets.getPhotos,flickr,data.mode,["photoset","photo"],"photoset_id",userid);
+        })
+        if(result.photosets.page < result.photosets.pages){
+            allAlb(flickr,id,list,data,socket,pagealb+1);
+        }
+        else{
+            socket.emit("reply",{status:"success",content:list});
+        }
+    })
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function id(flickr,getid,method,data,socket,element,idname,userid = null){
     getid({
         api_key: flickrOptions.api_key,
+        authenticated: true,
         url: data.url
     },function(err,result){
         if(err){
@@ -84,27 +146,25 @@ function id(flickr,getid,method,data,socket,element,idname){
             let user_id = (result.user|| result.gallery || result.group).id;
             // get list photo
             fs.writeFileSync(path.join(__path,"pictures",data.mode + "-"+user_id+".txt"),"");
-            get((result.user|| result.gallery || result.group).id,socket,method, flickr,data.mode,element,idname);
+            get((result.user|| result.gallery || result.group).id,socket,method, flickr,data.mode,element,idname,userid);
         }
     })
 }
 
-function get(id,socket,method,flickr,mode,element,idname,page = 1){
+function get(id,socket,method,flickr,mode,element,idname,userid,page = 1){
     let user_id = id;
     let option = {
         api_key: flickrOptions.api_key,
-        // gallery_id: id,
-        // group_id: id,
-        // photoset_id: id,
-        // user_id: id,
         authenticated: true,
         per_page: 500,
-        page: page
+        page: page,
+        user_id : userid
     }
     option[idname] = id;
     method(option,function(err,result){
         if(err){
             console.log(err);
+            return;
         }
         result[element[0]][element[1]].forEach(element => {
             flickr.photos.getSizes({
