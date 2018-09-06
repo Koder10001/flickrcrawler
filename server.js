@@ -1,3 +1,4 @@
+"use-strict";
 var http = require("http").createServer(handler);
 var io = require("socket.io")(http);
 var fs = require("fs");
@@ -174,49 +175,187 @@ function id(flickr,getid,method,data,socket,element,idname,userid = undefined){
     })
 }
 
+// function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 1){
+//     let user_id = id;
+//     let option = {
+//         api_key: flickrOptions.api_key,
+//         authenticated: true,
+//         per_page: 500,
+//         page: page,
+//         user_id : userid
+//     }
+//     option[idname] = id;
+//     method(option,function(err,result){
+//         if(err){
+//             console.log(err);
+//             return;
+//         }
+//         result[element[0]][element[1]].forEach(element => {
+//             flickr.photos.getSizes({
+//                 api_key: flickrOptions.api_key,
+//                 photo_id: element.id,
+//                 authenticated: true,
+//             },retry = function(err,result){
+//                 if(err){
+//                     flickr.photos.getSizes({
+//                         api_key: flickrOptions.api_key,
+//                         photo_id: element.id,
+//                         authenticated: true,
+//                     },retry);
+//                     return;
+//                 }
+//                 if(fs.statSync(path.join(__path,filepath)).size == 0){
+//                     fs.appendFileSync(path.join(__path,filepath),result.sizes.size[result.sizes.size.length -1].source);
+//                 }
+//                 else {
+//                     fs.appendFileSync(path.join(__path,filepath),"\n" + result.sizes.size[result.sizes.size.length -1].source);
+//                 }
+//             })
+//         });
+//         if(result[element[0]].pages > page){
+//             socket.emit("reply",{status: "success",content: (500*page)+"/"+result[element[0]].total});
+//             get(id,socket,method,flickr,mode,element,idname,filepath,userid,page+1);
+//         }
+//         else {
+//             socket.emit("reply",{status: "success",content: (500*(page-1)+result[element[0]][element[1]].length)+"/"+result[element[0]].total});
+//             socket.emit("reply",{status: "success", content: '<a download href="' + filepath + '">'+ mode + '-'+user_id+'.txt</a>'})
+//         }
+//     });
+// }
+
+
+// function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 1){
+//     let user_id = id;
+//     let option = {
+//         api_key: flickrOptions.api_key,
+//         authenticated: true,
+//         per_page: 500,
+//         page: page,
+//         user_id : userid
+//     }
+//     option[idname] = id;
+//     method(option,function(err,result){
+//         if(err){
+//             console.log(err);
+//             return;
+//         }
+//         let download = function(arr,index){
+//             new Promise((resolve,reject)=>{
+//                 flickr.photos.getSizes({
+//                     api_key: flickrOptions.api_key,
+//                     photo_id: arr[element[0]][element[1]][index].id,
+//                     authenticated: true,
+//                 },retry = function(err,result){
+//                     if(err){
+//                         flickr.photos.getSizes({
+//                             api_key: flickrOptions.api_key,
+//                             photo_id: arr[element[0]][element[1]][index].id,
+//                             authenticated: true,
+//                         },retry);
+//                         return;
+//                     }
+//                     if(fs.statSync(path.join(__path,filepath)).size == 0){
+//                         fs.appendFile(path.join(__path,filepath),result.sizes.size[result.sizes.size.length -1].source,(err)=>{
+//                             resolve([arr,index]);
+//                         });
+//                     }
+//                     else {
+//                         fs.appendFile(path.join(__path,filepath),"\n" + result.sizes.size[result.sizes.size.length -1].source,(err)=>{
+//                             resolve([arr,index]);
+//                         });
+//                     }
+//                 })
+//             }).then((data)=>{
+//                 if(data[1] < data[0][element[0]][element[1]].length -1){
+//                     download(data[0],data[1] + 1);
+//                 }
+//             })
+//         }
+//         download(result,0);
+//         if(result[element[0]].pages > page){
+//             socket.emit("reply",{status: "success",content: (500*page)+"/"+result[element[0]].total});
+//             get(id,socket,method,flickr,mode,element,idname,filepath,userid,page+1);
+//         }
+//         else {
+//             socket.emit("reply",{status: "success",content: (500*(page-1)+result[element[0]][element[1]].length)+"/"+result[element[0]].total});
+//             socket.emit("reply",{status: "success", content: '<a download href="' + filepath + '">'+ mode + '-'+user_id+'.txt</a>'})
+//         }
+//     });
+// }
+
+
+
 function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 1){
     let user_id = id;
     let option = {
         api_key: flickrOptions.api_key,
         authenticated: true,
-        per_page: 500,
+        per_page: 100,
         page: page,
         user_id : userid
     }
     option[idname] = id;
-    method(option,function(err,result){
+    method(option,a = function(err,result){
         if(err){
             console.log(err);
+            method(option,a);
             return;
         }
-        result[element[0]][element[1]].forEach(element => {
-            flickr.photos.getSizes({
-                api_key: flickrOptions.api_key,
-                photo_id: element.id,
-                authenticated: true,
-            },retry = function(err,result){
-                if(err){
-                    flickr.photos.getSizes({
-                        api_key: flickrOptions.api_key,
-                        photo_id: element.id,
-                        authenticated: true,
-                    },retry);
-                    return;
-                }
-                if(fs.statSync(path.join(__path,filepath)).size == 0){
-                    fs.appendFileSync(path.join(__path,filepath),result.sizes.size[result.sizes.size.length -1].source);
-                }
-                else {
-                    fs.appendFileSync(path.join(__path,filepath),"\r\n" + result.sizes.size[result.sizes.size.length -1].source);
+        let download = function(arr,index = 0,list = []){
+            new Promise((resolve,reject)=>{
+                let length = result[element[0]][element[1]].length;
+                flickr.photos.getSizes({
+                    api_key: flickrOptions.api_key,
+                    photo_id: arr[element[0]][element[1]][index].id,
+                    authenticated: true,
+                },retry = function(err,result){
+                    if(err){
+                        flickr.photos.getSizes({
+                            api_key: flickrOptions.api_key,
+                            photo_id: arr[element[0]][element[1]][index].id,
+                            authenticated: true,
+                        },retry);
+                        return;
+                    }
+                    list.push(result.sizes.size[result.sizes.size.length -1].source);
+                    if(list.length == length){
+                        fs.appendFileSync(path.join(__path,filepath),list.join("\n") + "\n")
+                        socket.emit("reply",{status: "success",content: (100*(page - 1) + arr[element[0]][element[1]].length)+"/"+arr[element[0]].total});
+                    }
+                    console.log(arr[element[0]].page + " : " + list.length+"/"+length);
+                    resolve([arr,index + 1,list]);
+                })
+            }).then((data)=>{
+                if((data[1]) < data[0][element[0]][element[1]].length){
+                    download(data[0],data[1],data[2])
                 }
             })
-        });
+        }
+        download(result,0);
+        // result[element[0]][element[1]].forEach(element => {
+        //     flickr.photos.getSizes({
+        //         api_key: flickrOptions.api_key,
+        //         photo_id: element.id,
+        //         authenticated: true,
+        //     },retry = function(err,result){
+        //         if(err){
+        //             flickr.photos.getSizes({
+        //                 api_key: flickrOptions.api_key,
+        //                 photo_id: element.id,
+        //                 authenticated: true,
+        //             },retry);
+        //             return;
+        //         }
+        //         list.push(result.sizes.size[result.sizes.size.length -1].source)
+        //         if(list.length == length){
+        //             fs.appendFileSync(path.join(__path,filepath),list.join("\n")+"\n");
+        //         }
+        //     })
+        // });
         if(result[element[0]].pages > page){
-            socket.emit("reply",{status: "success",content: (500*page)+"/"+result[element[0]].total});
-            get(id,socket,method,flickr,mode,element,idname,filepath,userid,page+1);
+            get(id,socket,method,flickr,mode,element,idname,filepath,userid ,page+1);
         }
         else {
-            socket.emit("reply",{status: "success",content: (500*(page-1)+result[element[0]][element[1]].length)+"/"+result[element[0]].total});
             socket.emit("reply",{status: "success", content: '<a download href="' + filepath + '">'+ mode + '-'+user_id+'.txt</a>'})
         }
     });
