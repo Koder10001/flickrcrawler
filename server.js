@@ -185,9 +185,8 @@ function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 
                         return;
                     }
                     else{
-                        list.push(result.sizes.size[result.sizes.size.length -1].source);
+                        fs.appendFileSync(path.join(__path,filepath),result.sizes.size[result.sizes.size.length -1].source + "\n")
                         if(list.length == length){
-                            fs.appendFileSync(path.join(__path,filepath),list.join("\n") + "\n")
                             socket.emit("reply",{status: "success",content: (500*(page - 1) + arr[element[0]][element[1]].length)+"/"+arr[element[0]].total});
                             return;
                         }
