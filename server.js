@@ -322,6 +322,7 @@ function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 
                         if(list.length == length){
                             fs.appendFileSync(path.join(__path,filepath),list.join("\n") + "\n")
                             socket.emit("reply",{status: "success",content: (100*(page - 1) + arr[element[0]][element[1]].length)+"/"+arr[element[0]].total});
+                            return;
                         }
                         console.log(arr[element[0]].page + " : " + list.length+"/"+length);
                         resolve([arr,index + 1,list]);
@@ -333,7 +334,7 @@ function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 
                 }
             })
         }
-        download(result,0);
+        download(result);
         // result[element[0]][element[1]].forEach(element => {
         //     flickr.photos.getSizes({
         //         api_key: flickrOptions.api_key,
