@@ -168,7 +168,7 @@ function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 
             method(option,a);
             return;
         }
-        let download = function(arr,index = 0,list = []){
+        let download = function(arr,index = 0){
             new Promise((resolve,reject)=>{
                 let length = result[element[0]][element[1]].length;
                 flickr.photos.getSizes({
@@ -186,17 +186,17 @@ function get(id,socket,method,flickr,mode,element,idname,filepath,userid,page = 
                     }
                     else{
                         fs.appendFileSync(path.join(__path,filepath),result.sizes.size[result.sizes.size.length -1].source + "\n")
-                        if(list.length == length){
+                        if((index + 1) == length){
                             socket.emit("reply",{status: "success",content: (500*(page - 1) + arr[element[0]][element[1]].length)+"/"+arr[element[0]].total});
                             return;
                         }
-                        console.log(arr[element[0]].page + " : " + list.length+"/"+length);
-                        resolve([arr,index + 1,list]);
+                        console.log(arr[element[0]].page + " : " + (index+1)+"/"+length);
+                        resolve([arr,index + 1]);
                     }
                 })
             }).then((data)=>{
                 if((data[1]) < data[0][element[0]][element[1]].length){
-                    download(data[0],data[1],data[2])
+                    download(data[0],data[1])
                 }
             })
         }
